@@ -1,12 +1,6 @@
 package de.codesourcery.iozone;
 
-import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -20,82 +14,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import javax.imageio.ImageIO;
-
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartUtilities;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
-import org.jfree.data.xy.XYSeries;
-import org.jfree.data.xy.XYSeriesCollection;
-
-public class IOZoneChartGenerator
+public class IOZoneFileParser
 {
-	public static void main(String[] args) throws FileNotFoundException, IOException
-	{
-		//Get the workbook instance for XLS file
-		final CsvReader csvReader = new CsvReader(new FileInputStream("/home/tgierke/tmp/test.csv"));
-		final IOZoneReader ioReader = new IOZoneReader( csvReader );
-
-		final File outputDir = new File("/home/tgierke/tmp");
-		for ( IOZoneReport  report : ioReader.reports )
-		{
-			writeChart(report,outputDir);
-		}
-	}
-
-	private static void writeChart(final IOZoneReport report,File outputDir) throws IOException
-	{
-		final XYSeriesCollection xyDataset = new XYSeriesCollection();
-		String title = report.reportName;
-		String xAxisLabel = "Transfer size in kb";
-		String yAxisLabel = "MB/s";
-
-		for ( int fileSize : report.getFileSizes() )
-		{
-			System.out.println("Got file size "+fileSize+"k ...");
-			final FileEntry fileEntry = report.getFileEntry( fileSize );
-
-			final XYSeries s1 = new XYSeries( fileEntry.fileSize+"k" );
-			for ( int i = 0 ; i < fileEntry.values.length ; i++ )
-			{
-				final int recordLen = report.recordLengths[i];
-				final int value = fileEntry.values[i]; // value is in bytes/second
-				s1.add( recordLen , value/(1024f*1024f) );
-			}
-			xyDataset.addSeries( s1 );
-		}
-
-		final PlotOrientation plotOrientation = PlotOrientation.VERTICAL;
-		boolean legend = true;
-		boolean tooltip = false;
-		boolean urls = false;
-
-		final JFreeChart chart = ChartFactory.createXYLineChart(title,xAxisLabel,yAxisLabel,xyDataset,plotOrientation,legend,tooltip,urls);
-
-		final XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer();
-		renderer.setSeriesShapesVisible( 0 , true );
-		renderer.setSeriesItemLabelsVisible( 0 , true );
-		renderer.setBaseItemLabelsVisible( true );
-
-		chart.getXYPlot().setRenderer( renderer );
-
-		final BufferedImage image = toImage( chart );
-		final String fileName = report.reportName.replace(" ","_")+".png";
-		final File outputFile = new File( outputDir , fileName );
-		ImageIO.write( image , "png" , outputFile );
-		System.out.println("Image written to "+outputFile );
-	}
-
-	private static BufferedImage toImage(JFreeChart chart) throws IOException
-	{
-		final ByteArrayOutputStream out = new ByteArrayOutputStream();
-		ChartUtilities.writeChartAsPNG(out, chart, 640 , 480 );
-
-		return ImageIO.read( new ByteArrayInputStream( out.toByteArray() ) );
-	}
-
 	protected static final class FileEntry
 	{
 		public final int fileSize;
@@ -108,7 +28,7 @@ public class IOZoneChartGenerator
 		}
 	}
 
-	protected static final class IOZoneReport
+	public static final class IOZoneReport
 	{
 		public final String reportName;
 		public final int[] recordLengths;
@@ -138,7 +58,7 @@ public class IOZoneChartGenerator
 		}
 	}
 
-	protected static final class CountingReader implements Iterator<Row>
+	public static final class CountingReader implements Iterator<Row>
 	{
 		private final List<Row> rows;
 		public int currentRow = 0;
@@ -170,7 +90,7 @@ public class IOZoneChartGenerator
 		}
 	};
 
-	protected static final class IOZoneReader implements Iterable<IOZoneReport>
+	public static final class IOZoneReader implements Iterable<IOZoneReport>
 	{
 		private final List<IOZoneReport> reports = new ArrayList<>();
 
@@ -220,6 +140,14 @@ public class IOZoneChartGenerator
 				throw new RuntimeException("At row: "+counter.previousRow()+" : "+e.getMessage() ,e );
 			}
 		}
+		
+		public IOZoneReport getReport(String name) {
+		    return stream().filter( r -> name.equals( r.reportName) ).findFirst().orElseThrow( () -> new RuntimeException("Missing report: '"+name+"'" ) );
+		}
+		
+		public List<IOZoneReport> getReports() {
+            return reports;
+        }
 
 		public Stream<IOZoneReport> stream() {
 			return reports.stream();
@@ -231,7 +159,7 @@ public class IOZoneChartGenerator
 		}
 	}
 
-	protected static final class Cell
+	public static final class Cell
 	{
 		private String value;
 
@@ -253,7 +181,7 @@ public class IOZoneChartGenerator
 		}
 	}
 
-	protected static final class Row implements Iterable<Cell>
+	public static final class Row implements Iterable<Cell>
 	{
 		private final List<Cell> cells = new ArrayList<>();
 
@@ -287,7 +215,7 @@ public class IOZoneChartGenerator
 		}
 	}
 
-	protected static final class CsvReader implements Iterable<Row>
+	public static final class CsvReader implements Iterable<Row>
 	{
 		private final BufferedReader reader;
 		private final List<Row> rows = new ArrayList<>();

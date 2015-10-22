@@ -2,11 +2,8 @@ package de.codesourcery.iozone;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Toolkit;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.math.Matrix4;
@@ -29,6 +26,9 @@ public class Mesh
 	private final int xSize;
 	private final int zSize;
 	public final String name;
+	
+	public float minY;
+	public float maxY;
 	
 	public final Color defaultColor = Color.WHITE;
 	
@@ -74,29 +74,48 @@ public class Mesh
 	            coords[ arrayOffset( x ,  z )+1 ] = provider.getCellValue( x ,  z );
 	        }
 	    }
+	    scanData();
+	}
+	
+	public void scanData() 
+	{
+       float min = coords[1];
+       float max = min;
+        for ( int ptr = 0 ; ptr < coords.length ; ptr += 3 ) {
+            float value = coords[ptr+1];
+            if ( value < min ) {
+                min = value;
+            }
+            if ( value > max ) {
+                max = value;
+            }
+        }
+        this.minY = min;
+        this.maxY = max;
 	}
 	
 	public float getMinY() 
 	{
-	    float min = coords[1];
-	    for ( int ptr = 0 ; ptr < coords.length ; ptr += 3 ) {
-	        if ( coords[ptr+1] < min ) {
-	            min = coords[ptr+1];
-	        }
-	    }
-	    return min;
+	    return minY;
 	}
 	
     public float getMaxY() 
     {
-        float max = coords[1];
-        for ( int ptr = 0 ; ptr < coords.length ; ptr += 3 ) {
-            if ( coords[ptr+1] > max ) {
-                max = coords[ptr+1];
-            }
-        }
-        return max;
+        return maxY;
     }	
+    
+    public void scaleTo(float yMin,float yMax) 
+    {
+        float currentRange = getMaxY() - getMinY();
+        float desiredRange = yMax - yMin;
+        float scale = desiredRange/currentRange;
+        float yOffset = yMin - getMinY();
+        
+        for ( int ptr = 0 ; ptr < coords.length ; ptr += 3 ) 
+        {
+            coords[ptr+1] = (coords[ptr+1] + yOffset ) * scale; 
+        }
+    }
 	
 	public float width() 
 	{
@@ -162,8 +181,6 @@ public class Mesh
 		}
 	}
 	
-	private static final Map<Integer,Color> colorMap = new HashMap<>();
-
 	public static void renderQuads(List<Quad> quads,Camera camera,Graphics2D gfx)
 	{
 		// sort back-to-front and render
@@ -181,7 +198,7 @@ public class Mesh
 			camera.project( quad.c1 , 0 , 0 , viewportWidth , viewportHeight );
 			camera.project( quad.c2 , 0 , 0 , viewportWidth , viewportHeight );
 			camera.project( quad.c3 , 0 , 0 , viewportWidth , viewportHeight );
-
+			
 			vx[0] = (int) quad.c0.x;
 			vz[0] = (int) quad.c0.y;
 
@@ -246,7 +263,8 @@ public class Mesh
 			final Vector3 planeNormal = camera.direction;
 			final Vector3 pointOnPlane = camera.position;
 			
-			dist = planeNormal.dot( center.sub( pointOnPlane ) );
+//			dist = planeNormal.dot( center.sub( pointOnPlane ) );
+			dist = center.cpy().sub( camera.position ).len();
 
 			// calculate angle between normal and Y axis
 			Vector3 v1 = c0.cpy().sub( c1 );

@@ -1,6 +1,7 @@
 package de.codesourcery.iozone;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +19,8 @@ public class Axis
     
     public final Matrix4 modelMatrix = new Matrix4().idt();
     
-    public Color color = Color.BLACK;
+    public Color labelColor = Color.BLACK;
+    public Color axisLineColor = Color.BLACK;
     
     public final float length;
     public final String name;
@@ -60,7 +62,12 @@ public class Axis
         
         float viewportHeight = camera.viewportHeight;
         float viewportWidth = camera.viewportWidth;
-        gfx.setColor( color );
+        gfx.setColor( labelColor );
+        
+        final Font oldFont = gfx.getFont();
+        final Font labelFont = oldFont.deriveFont( Font.BOLD , (float) 13 );
+        gfx.setFont( labelFont );
+        
         for ( int step = 0 ; step < labels.size() ; step++ ) 
         {
             tmp.set( current );
@@ -72,8 +79,11 @@ public class Axis
             gfx.drawString( labels.get( step ) , scrX, scrY );
             current.add( stepSize );
         }
+        gfx.setFont( oldFont );
         
         // draw line
+        gfx.setColor( axisLineColor );
+        
         perspective( startView , camera ); 
         perspective( endView , camera ); 
         
