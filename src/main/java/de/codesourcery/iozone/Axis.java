@@ -22,6 +22,9 @@ public class Axis
     public Color labelColor = Color.BLACK;
     public Color axisLineColor = Color.BLACK;
     
+    public static float INITIAL_FONT_SIZE = 12;
+    public static float FONT_SCALING_FACTOR = 80000f;
+    
     public final float length;
     public final String name;
     
@@ -38,20 +41,17 @@ public class Axis
         return name;
     }
     
-    public void render(Graphics2D gfx,Camera camera) 
+    public void render(Matrix4 viewMatrix , Graphics2D gfx,Camera camera) 
     {
         // calculate matrix to get from object space to world space
-        final Matrix4 modelView = camera.view.cpy();
-        modelView.mul( modelMatrix );
-        
+        final Matrix4 modelView = viewMatrix.cpy().mul( modelMatrix );
+
         // convert start & end into world space
         final Vector3 startView = start.cpy();
         final Vector3 endView = end.cpy();
         
         startView.mul( modelView );
         endView.mul( modelView );
-        
-        System.out.println("Rendering "+name+" with length "+length+" that goes from "+startView+" to "+endView);
         
         final Vector3 stepSize = endView.cpy().sub( startView );
         stepSize.scl( 1f / labels.size());
@@ -60,23 +60,24 @@ public class Axis
         
         final Vector3 tmp = new Vector3();
         
-        float viewportHeight = camera.viewportHeight;
-        float viewportWidth = camera.viewportWidth;
         gfx.setColor( labelColor );
         
         final Font oldFont = gfx.getFont();
-        final Font labelFont = oldFont.deriveFont( Font.BOLD , (float) 13 );
-        gfx.setFont( labelFont );
         
         for ( int step = 0 ; step < labels.size() ; step++ ) 
         {
             tmp.set( current );
-            perspective( tmp , camera );
+            final float avgDist = 1+current.dst( camera.position );
             
-            // OpenGL puts origin of screen space into bottom-left corner...
-            final int scrX = (int) (tmp.x + viewportWidth/2f);
-            final int scrY = (int) (viewportHeight/2f - tmp.y);
-            gfx.drawString( labels.get( step ) , scrX, scrY );
+            final float scale = FONT_SCALING_FACTOR / (avgDist*avgDist);
+            final float fontSize = (INITIAL_FONT_SIZE *  scale);
+//            System.out.println("font size: "+fontSize);
+            final Font labelFont = oldFont.deriveFont( Font.BOLD , fontSize );
+            gfx.setFont( labelFont );
+            
+            worldToScreen( tmp , camera );
+            
+            gfx.drawString( labels.get( step ) , (int) tmp.x, (int) tmp.y );
             current.add( stepSize );
         }
         gfx.setFont( oldFont );
@@ -84,19 +85,13 @@ public class Axis
         // draw line
         gfx.setColor( axisLineColor );
         
-        perspective( startView , camera ); 
-        perspective( endView , camera ); 
+        worldToScreen( startView , camera ); 
+        worldToScreen( endView , camera ); 
         
-        // OpenGL puts origin of screen space into bottom-left corner...        
-        final int scrX1 = (int) (startView.x + viewportWidth/2f);
-        final int scrY1 = (int) (viewportHeight/2f - startView.y);
-        final int scrX2 = (int) (endView.x + viewportWidth/2f);
-        final int scrY2 = (int) (viewportHeight/2f - endView.y);
-        
-        gfx.drawLine( scrX1,scrY1,scrX2,scrY2 );
+        gfx.drawLine( (int) startView.x,(int) startView.y,(int) endView.x,(int) endView.y );
     }
     
-    private Vector3 perspective(Vector3 worldCoords,Camera camera) 
+    public static Vector3 worldToScreen(Vector3 worldCoords,Camera camera) 
     {
         final float viewportWidth=camera.viewportWidth;
         final float viewportHeight=camera.viewportHeight;
@@ -108,6 +103,11 @@ public class Axis
         worldCoords.x = viewportWidth * (worldCoords.x + 1) / 2 + viewportX;
         worldCoords.y = viewportHeight * (worldCoords.y + 1) / 2 + viewportY;
         worldCoords.z = (worldCoords.z + 1) / 2;
+        
+        // OpenGL puts origin of screen space into bottom-left corner...        
+        worldCoords.x = worldCoords.x + (int) (viewportWidth/2f);
+        worldCoords.y = (int) (viewportHeight/2f) - worldCoords.y;
+        
         return worldCoords;
     }
 }

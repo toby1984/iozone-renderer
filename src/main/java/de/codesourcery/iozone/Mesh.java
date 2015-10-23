@@ -30,7 +30,7 @@ public class Mesh
 	public float minY;
 	public float maxY;
 	
-	public final Color defaultColor = Color.WHITE;
+	public Color defaultColor = Color.WHITE;
 	
 	public final Matrix4 modelMatrix = new Matrix4().idt();
 	
@@ -152,10 +152,14 @@ public class Mesh
 		out.z = array[offset+2];
 	}
 
-	public void toQuads(Camera camera,List<Quad> out, boolean backfaceCulling)
+	public void toQuads(Matrix4 viewMatrix , Camera camera,List<Quad> out, boolean backfaceCulling,boolean isDataPlane)
 	{
 	    System.arraycopy( coords , 0 , tmpCoords , 0 , coords.length );
-	    Matrix4.mulVec(modelMatrix.val , tmpCoords , 0 , coords.length/3 , 3 );
+	    
+	    Matrix4 tmp = viewMatrix.cpy();
+	    tmp.mul( modelMatrix );
+	    
+	    Matrix4.mulVec(tmp.val , tmpCoords , 0 , coords.length/3 , 3 );
 	    
 		for ( int z = 0 ; z < zSize-1 ; z++ )
 		{
@@ -169,10 +173,23 @@ public class Mesh
 				 */
 				final Quad quad = new Quad();
 				quad.color = defaultColor;
+				final int offset0 = arrayOffset( x   , z );
+				final int offset1 = arrayOffset( x+1 , z );
+				final int offset2 = arrayOffset( x+1 , z+1 );
+				final int offset3 = arrayOffset( x   , z+1 );
+				quad.avgDataValue = (coords[offset0+1] + coords[offset1+1] + coords[offset2+1] + coords[offset3+1])/4f;
+				
 				readVector3( tmpCoords , x   , z   , quad.c0  );
 				readVector3( tmpCoords , x+1 , z   , quad.c1 );
 				readVector3( tmpCoords , x+1 , z+1 , quad.c2 );
 				readVector3( tmpCoords , x   , z+1 , quad.c3 );
+//				if ( isDataPlane ) 
+//				{
+//    				final float avgYCoordinate1 = (quad.c0.y + quad.c1.y )/2f;
+//    				final float avgYCoordinate2 = (quad.c2.y + quad.c3.y)/2f;
+//    				quad.c0.y = quad.c1.y = avgYCoordinate1;
+//    				quad.c2.y = quad.c3.y = avgYCoordinate2;
+//				}
 				quad.update( camera );
 				if ( ! backfaceCulling || quad.visible ) {
 				    out.add( quad );
@@ -187,17 +204,14 @@ public class Mesh
 		Collections.sort( quads );
 
 		// render along view direction
-		final float viewportWidth = camera.viewportWidth;
-		final float viewportHeight = camera.viewportHeight;
-		
 		final int[] vx = new int[4];
 		final int[] vz = new int[4];
 		for ( Quad quad : quads )
 		{
-            camera.project( quad.c0 , 0 , 0 , viewportWidth , viewportHeight );
-			camera.project( quad.c1 , 0 , 0 , viewportWidth , viewportHeight );
-			camera.project( quad.c2 , 0 , 0 , viewportWidth , viewportHeight );
-			camera.project( quad.c3 , 0 , 0 , viewportWidth , viewportHeight );
+			Axis.worldToScreen( quad.c0 , camera );
+			Axis.worldToScreen( quad.c1 , camera );
+			Axis.worldToScreen( quad.c2 , camera );
+			Axis.worldToScreen( quad.c3 , camera );
 			
 			vx[0] = (int) quad.c0.x;
 			vz[0] = (int) quad.c0.y;
@@ -211,23 +225,10 @@ public class Mesh
 			vx[3] = (int) quad.c3.x;
 			vz[3] = (int) quad.c3.y;
 			
-			// OpenGL puts origin of screen space into bottom-left corner...
-		    vx[0] = vx[0] + (int) (viewportWidth/2f);
-		    vz[0] = (int) (viewportHeight/2f) - vz[0];
-		    
-	        vx[1] = vx[1] + (int) (viewportWidth/2f);
-	        vz[1] = (int) (viewportHeight/2f) - vz[1];
-	        
-            vx[2] = vx[2] + (int) (viewportWidth/2f);
-            vz[2] = (int) (viewportHeight/2f) - vz[2];
-            
-            vx[3] = vx[3] + (int) (viewportWidth/2f);
-            vz[3] = (int) (viewportHeight/2f) - vz[3];            
-
 			gfx.setColor( quad.color );
 			gfx.fillPolygon( vx , vz , 4 );
 			
-			gfx.setColor( Color.BLACK );
+			gfx.setColor( Color.BLUE);
 			gfx.drawPolygon( vx , vz , 4 );
 		}
 	}
@@ -242,6 +243,8 @@ public class Mesh
 		public float angleRad;
 		public Color color;
 		public boolean visible;
+		
+		public float avgDataValue;
 
 		public void update(Camera camera)
 		{

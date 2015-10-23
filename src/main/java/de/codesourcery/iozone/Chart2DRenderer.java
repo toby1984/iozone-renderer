@@ -28,7 +28,7 @@ public class Chart2DRenderer
     public static void main(String[] args) throws FileNotFoundException, IOException
     {
         //Get the workbook instance for XLS file
-        final IOZoneReader ioReader = Chart3DRenderer.loadReports();
+        final IOZoneReader ioReader = Chart3DViewer.loadReports();
 
         final ChartPanel p = new ChartPanel( createChart( ioReader.getReport("Reader report") ) );
         
@@ -65,7 +65,6 @@ public class Chart2DRenderer
 
         for ( int fileSize : report.getFileSizes() )
         {
-            System.out.println("Got file size "+fileSize+"k ...");
             final FileEntry fileEntry = report.getFileEntry( fileSize );
 
             final XYSeries s1 = new XYSeries( fileEntry.fileSize+"k" );
