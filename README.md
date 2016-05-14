@@ -1,6 +1,6 @@
 This is just a quick hack to render IOZone data as 2d/3d charts.
 
-![screenshot]()
+![screenshot](https://github.com/toby1984/iozone-renderer/blob/master/screenshot.png?raw=true)
 
 ### Building
 
